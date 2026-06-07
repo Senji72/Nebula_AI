@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nebula AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="space-backdrop" aria-hidden="true"></div>
+
+  <div class="nebula-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Nebula AI">
+        <span class="brand-mark">
+          <span class="brand-core"></span>
+        </span>
+        <span>
+          <strong>Nebula</strong>
+          <small>AI Circuit Assistant</small>
+        </span>
+      </a>
+
+      <label class="searchbar" for="circuitSearch">
+        <span aria-hidden="true">⌕</span>
+        <input id="circuitSearch" type="search" placeholder="Buscar circuito RC, revisar conexiones, optimizar protoboard..." />
+      </label>
+
+      <div class="status-strip" aria-label="Estado del sistema">
+        <span><i class="dot ready"></i>Listo</span>
+        <span><i class="dot inactive"></i>Simulación inactiva</span>
+      </div>
+    </header>
+
+    <div class="app-grid">
+      <aside class="panel components-panel" aria-label="Componentes">
+        <div class="panel-heading">
+          <span class="tool-icon">▣</span>
+          <h2>Componentes</h2>
+        </div>
+
+        <button class="component-button" type="button"><span>▬</span>Resistor</button>
+        <button class="component-button" type="button"><span>▰</span>Condensador</button>
+        <button class="component-button" type="button"><span>◆</span>Diodo</button>
+        <button class="component-button" type="button"><span>⌁</span>Transistor</button>
+        <button class="component-button" type="button"><span>▥</span>IC</button>
+        <button class="component-button active" type="button"><span>▧</span>Vista Protoboard</button>
+
+        <div class="export-block">
+          <span>Exportar</span>
+          <div class="export-actions">
+            <button type="button" data-export="svg" title="Exportar SVG">SVG</button>
+            <button type="button" data-export="png" title="Exportar PNG">PNG</button>
+            <button type="button" data-export="json" title="Exportar JSON">JSON</button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="workspace" aria-label="Nebula AI workspace">
+        <section class="mode-panel" aria-label="Modos de análisis">
+          <button class="mode-card" type="button" data-mode="basic">
+            <span class="mode-symbol">⚡</span>
+            <span class="mode-title">Modo Earth</span>
+            <strong>Revisión de errores</strong>
+            <small>Detección básica de cortos, conexiones faltantes y polaridad.</small>
+          </button>
+
+          <button class="mode-card" type="button" data-mode="advanced">
+            <span class="mode-symbol">🚀</span>
+            <span class="mode-title">Modo Spaceship</span>
+            <strong>Mejoras de diseño</strong>
+            <small>Valores de resistencias, equivalentes y topologías más eficientes.</small>
+          </button>
+
+          <button class="mode-card" type="button" data-mode="complete">
+            <span class="mode-symbol">🌌</span>
+            <span class="mode-title">Modo Ether</span>
+            <strong>Análisis completo</strong>
+            <small>Errores críticos primero, optimizaciones después.</small>
+          </button>
+        </section>
+
+        <section class="editor-panel">
+          <div class="editor-header">
+            <div>
+              <h1>Nebula AI</h1>
+              <p>Importa texto o JSON de CircuitJS1, selecciona un modo y revisa el diagnóstico técnico.</p>
+            </div>
+            <span id="activeModeBadge" class="mode-badge">⚡ Básico</span>
+          </div>
+
+          <label class="json-label" for="circuitJson">CircuitJS1 texto o JSON</label>
+          <textarea id="circuitJson" spellcheck="false" placeholder='Pega aquí "Exportar en formato texto..." de CircuitJS1. También acepta JSON. Ejemplo texto: r 144 112 224 112 0 1000'></textarea>
+
+          <div class="controls-row">
+            <button id="analyzeButton" class="primary-action" type="button">⚡ Analizar</button>
+            <button id="sampleButton" class="secondary-action" type="button">▦ Cargar demo</button>
+            <button id="downloadButton" class="secondary-action" type="button">⇩ Plantilla</button>
+          </div>
+
+          <details class="lm-panel">
+            <summary>Conexión opcional con LM Studio</summary>
+            <div class="lm-grid">
+              <label>
+                Endpoint
+                <input id="lmEndpoint" type="url" value="http://localhost:1234/v1/chat/completions" />
+              </label>
+              <label>
+                Modelo
+                <input id="lmModel" type="text" value="local-model" />
+              </label>
+              <label class="toggle-row">
+                <input id="useLmStudio" type="checkbox" />
+                <span>Enviar análisis a LM Studio</span>
+              </label>
+              <button id="copyPromptButton" class="secondary-action" type="button">Copiar prompt</button>
+            </div>
+          </details>
+        </section>
+      </main>
+
+      <aside class="panel analysis-sidebar" aria-label="Resultados de análisis">
+        <div class="analysis-header">
+          <div>
+            <h2>Panel Nebula</h2>
+            <p>Modo actual: <span id="analysisMode">Modo Básico</span></p>
+          </div>
+          <span id="analysisEmblem" class="analysis-emblem">⚡</span>
+        </div>
+
+        <div id="analysisPanel" class="analysis-panel" aria-live="polite">
+          <div class="empty-state">
+            <strong>Esperando circuito</strong>
+            <p>Carga texto/JSON y presiona analizar para iniciar el diagnóstico.</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
