@@ -11,6 +11,9 @@ const activeModeBadge = document.getElementById("activeModeBadge");
 const useLmStudio = document.getElementById("useLmStudio");
 const lmEndpoint = document.getElementById("lmEndpoint");
 const lmModel = document.getElementById("lmModel");
+const circuitPreview = document.getElementById("circuitPreview");
+const circuitSummary = document.getElementById("circuitSummary");
+const circuitKindBadge = document.getElementById("circuitKindBadge");
 
 const modes = {
   basic: {
@@ -146,6 +149,10 @@ function parseCircuitText(input) {
       type,
       value,
       nodes: [nodeFor(x1, y1), nodeFor(x2, y2)],
+      x1,
+      y1,
+      x2,
+      y2,
       source: "CircuitJS1 text",
       raw: line,
       line: index + 1,
@@ -164,6 +171,102 @@ function parseCircuitText(input) {
   };
 }
 
+function parseCircuitXml(input) {
+  const parser = new DOMParser();
+  const documentXml = parser.parseFromString(input, "application/xml");
+  const parserError = documentXml.querySelector("parsererror");
+
+  if (parserError) {
+    throw new Error("El XML no se pudo leer. Revisa que hayas copiado el contenido completo.");
+  }
+
+  const root = documentXml.querySelector("cir");
+  if (!root) {
+    throw new Error("El XML no contiene una etiqueta principal <cir>.");
+  }
+
+  const serializer = new XMLSerializer();
+  const typeMap = {
+    w: "wire",
+    r: "resistor",
+    R: "rail",
+    c: "capacitor",
+    l: "inductor",
+    d: "diode",
+    LED: "led",
+    g: "ground",
+    s: "switch",
+    I: "logic input",
+    And: "and gate",
+    Or: "or gate",
+    Xor: "xor gate",
+    Not: "not gate",
+    ssd: "seven segment display",
+  };
+
+  const parts = [];
+  const nodeIds = new Map();
+
+  function nodeFor(x, y) {
+    const key = `${x},${y}`;
+    if (!nodeIds.has(key)) nodeIds.set(key, nodeIds.size);
+    return nodeIds.get(key);
+  }
+
+  Array.from(root.children).forEach((element, index) => {
+    const tag = element.tagName;
+    const coordinates = (element.getAttribute("x") || "")
+      .trim()
+      .split(/\s+/)
+      .map(Number);
+
+    if (coordinates.length < 4 || coordinates.some((value) => !Number.isFinite(value))) {
+      return;
+    }
+
+    const [x1, y1, x2, y2] = coordinates;
+    const attributes = {};
+    Array.from(element.attributes).forEach((attribute) => {
+      attributes[attribute.name] = attribute.value;
+    });
+
+    const value =
+      attributes.r ||
+      attributes.maxv ||
+      attributes.o ||
+      attributes.mo ||
+      attributes.bi ||
+      attributes.hi ||
+      "";
+
+    parts.push({
+      type: typeMap[tag] || `xml:${tag}`,
+      value,
+      nodes: [nodeFor(x1, y1), nodeFor(x2, y2)],
+      x1,
+      y1,
+      x2,
+      y2,
+      attributes,
+      source: "CircuitJS XML",
+      raw: serializer.serializeToString(element),
+      line: index + 1,
+    });
+  });
+
+  if (!parts.length) {
+    throw new Error("No pude reconocer componentes dentro del XML.");
+  }
+
+  return {
+    description: "Circuito importado desde XML de CircuitJS",
+    format: "circuitjs-xml",
+    settings: Object.fromEntries(Array.from(root.attributes).map((attribute) => [attribute.name, attribute.value])),
+    nodes: Array.from({ length: nodeIds.size }, (_, id) => id),
+    parts,
+  };
+}
+
 function parseCircuitInput(input) {
   if (!input.trim()) {
     throw new Error("El campo del circuito está vacío.");
@@ -173,8 +276,226 @@ function parseCircuitInput(input) {
     const parsed = JSON.parse(input);
     return { ...parsed, parts: normalizeParts(parsed) };
   } catch {
+    if (input.trim().startsWith("<")) {
+      return parseCircuitXml(input);
+    }
     return parseCircuitText(input);
   }
+}
+
+function getPartPosition(part, index = 0) {
+  const x1 = Number(part.x1 ?? part.x ?? part.left);
+  const y1 = Number(part.y1 ?? part.y ?? part.top);
+  const x2 = Number(part.x2 ?? part.xEnd ?? part.right);
+  const y2 = Number(part.y2 ?? part.yEnd ?? part.bottom);
+
+  if ([x1, y1, x2, y2].every(Number.isFinite)) {
+    return { x1, y1, x2, y2 };
+  }
+
+  const col = index % 6;
+  const row = Math.floor(index / 6);
+  return {
+    x1: 80 + col * 130,
+    y1: 90 + row * 90,
+    x2: 150 + col * 130,
+    y2: 90 + row * 90,
+  };
+}
+
+function createDisjointSet(size) {
+  const parent = Array.from({ length: Math.max(size, 1) }, (_, index) => index);
+
+  function find(value) {
+    if (parent[value] !== value) parent[value] = find(parent[value]);
+    return parent[value];
+  }
+
+  function union(a, b) {
+    const rootA = find(a);
+    const rootB = find(b);
+    if (rootA !== rootB) parent[rootB] = rootA;
+  }
+
+  return { find, union };
+}
+
+function interpretCircuit(data) {
+  const parts = (data.parts || []).map((part, index) => ({
+    ...part,
+    id: part.id || `${getType(part) || "part"}-${index + 1}`,
+    position: getPartPosition(part, index),
+  }));
+
+  const nodeCount = Math.max(
+    data.nodes?.length || 0,
+    ...parts.flatMap((part) => getNodes(part)).map((node) => Number(node) + 1).filter(Number.isFinite),
+    1
+  );
+  const disjointSet = createDisjointSet(nodeCount);
+
+  parts.forEach((part) => {
+    const nodes = getNodes(part);
+    if (["wire", "line"].includes(getType(part)) && nodes.length >= 2) {
+      disjointSet.union(Number(nodes[0]), Number(nodes[1]));
+    }
+  });
+
+  const nodeGroups = new Map();
+  parts.forEach((part) => {
+    getNodes(part).forEach((node) => {
+      const root = disjointSet.find(Number(node));
+      if (!nodeGroups.has(root)) nodeGroups.set(root, []);
+      nodeGroups.get(root).push(part.id);
+    });
+  });
+
+  const typeCounts = parts.reduce((counts, part) => {
+    const type = getType(part) || "unknown";
+    counts[type] = (counts[type] || 0) + 1;
+    return counts;
+  }, {});
+
+  const digitalTypes = /and gate|or gate|xor gate|not gate|logic input|seven segment|flip|clock|xml:/;
+  const analogTypes = /resistor|capacitor|inductor|diode|led|voltage|current|ground|transistor|op amp/;
+  const hasDigital = parts.some((part) => digitalTypes.test(getType(part)));
+  const hasAnalog = parts.some((part) => analogTypes.test(getType(part)));
+  const kind = hasDigital && hasAnalog ? "Mixto" : hasDigital ? "Digital" : hasAnalog ? "Analógico" : "Desconocido";
+
+  const connectedNodeCount = nodeGroups.size;
+  const floatingGroups = Array.from(nodeGroups.entries()).filter(([, members]) => members.length === 1);
+  const warnings = [];
+
+  if (floatingGroups.length) {
+    warnings.push(`${floatingGroups.length} nodo(s) quedan conectados a un solo terminal tras unir cables.`);
+  }
+
+  if (parts.some((part) => /led|seven segment/.test(getType(part))) && !parts.some((part) => /resistor/.test(getType(part)))) {
+    warnings.push("Hay LED/display sin resistencias detectadas en la red importada.");
+  }
+
+  if (hasDigital && !parts.some((part) => /logic input|voltage source|switch/.test(getType(part)))) {
+    warnings.push("Se detecta lógica digital, pero no entradas claras.");
+  }
+
+  return {
+    ...data,
+    parts,
+    interpretation: {
+      format: data.format || "json",
+      kind,
+      componentCount: parts.length,
+      originalNodeCount: data.nodes?.length || nodeCount,
+      connectedNodeCount,
+      wireCount: parts.filter((part) => ["wire", "line"].includes(getType(part))).length,
+      typeCounts,
+      warnings,
+    },
+  };
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function renderCircuitSummary(data) {
+  const info = data.interpretation;
+  circuitKindBadge.textContent = info.kind;
+  circuitSummary.innerHTML = `
+    <div class="summary-pill">Componentes: ${info.componentCount}</div>
+    <div class="summary-pill">Nodos unidos: ${info.connectedNodeCount}</div>
+    <div class="summary-pill">Formato: ${info.format}</div>
+  `;
+}
+
+function renderCircuitPreview(data) {
+  const parts = data.parts || [];
+  if (!parts.length) {
+    circuitPreview.innerHTML = '<div class="empty-preview">No hay componentes para visualizar.</div>';
+    return;
+  }
+
+  const positions = parts.map((part, index) => getPartPosition(part, index));
+  const minX = Math.min(...positions.flatMap((position) => [position.x1, position.x2]));
+  const minY = Math.min(...positions.flatMap((position) => [position.y1, position.y2]));
+  const maxX = Math.max(...positions.flatMap((position) => [position.x1, position.x2]));
+  const maxY = Math.max(...positions.flatMap((position) => [position.y1, position.y2]));
+  const padding = 48;
+  const width = Math.max(620, maxX - minX + padding * 2);
+  const height = Math.max(280, maxY - minY + padding * 2);
+  const offsetX = padding - minX;
+  const offsetY = padding - minY;
+
+  const wireMarkup = [];
+  const partMarkup = [];
+  const nodeMarkup = [];
+  const seenNodes = new Set();
+
+  parts.forEach((part, index) => {
+    const type = getType(part);
+    const position = getPartPosition(part, index);
+    const x1 = position.x1 + offsetX;
+    const y1 = position.y1 + offsetY;
+    const x2 = position.x2 + offsetX;
+    const y2 = position.y2 + offsetY;
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    const label = escapeHtml(type.replace("circuitjs:", "").replace("xml:", "") || "part");
+
+    [`${x1},${y1}`, `${x2},${y2}`].forEach((key) => {
+      if (!seenNodes.has(key)) {
+        seenNodes.add(key);
+        nodeMarkup.push(`<circle class="preview-node" cx="${key.split(",")[0]}" cy="${key.split(",")[1]}" r="4" />`);
+      }
+    });
+
+    if (["wire", "line"].includes(type)) {
+      wireMarkup.push(`<line class="preview-wire" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />`);
+      return;
+    }
+
+    const className = /and gate|or gate|xor gate|not gate|logic input/.test(type)
+      ? "preview-part digital"
+      : /led|seven segment/.test(type)
+        ? "preview-part output"
+        : "preview-part";
+
+    partMarkup.push(`
+      <line class="preview-wire" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" opacity="0.35" />
+      <rect class="${className}" x="${midX - 34}" y="${midY - 16}" width="68" height="32" rx="8" />
+      <text class="preview-label" x="${midX}" y="${midY + 4}" text-anchor="middle">${label}</text>
+    `);
+  });
+
+  circuitPreview.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Vista previa del circuito interpretado">
+      ${wireMarkup.join("")}
+      ${partMarkup.join("")}
+      ${nodeMarkup.join("")}
+    </svg>
+  `;
+}
+
+function analyzeInterpretation(data) {
+  const info = data.interpretation;
+  const typeSummary = Object.entries(info.typeCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([type, count]) => `${type}: ${count}`)
+    .join(", ");
+
+  const details = [
+    `Tipo probable: ${info.kind}.`,
+    `Componentes: ${info.componentCount}; nodos eléctricos tras unir cables: ${info.connectedNodeCount}.`,
+    typeSummary ? `Componentes principales: ${typeSummary}.` : "No hay tipos principales para resumir.",
+    ...info.warnings,
+  ];
+
+  return [{ type: "complete", title: "Circuito interpretado", details, meta: "Motor Nebula" }];
 }
 
 function buildPrompt(data) {
@@ -182,6 +503,7 @@ function buildPrompt(data) {
     "Eres Nebula AI, asistente técnico para análisis de circuitos exportados desde CircuitJS1.",
     modes[selectedMode].prompt,
     "Devuelve una respuesta en español con secciones claras. Usa bullets breves y accionables.",
+    "Nebula ya interpretó el circuito; usa el resumen y la red normalizada para razonar.",
     "Circuito normalizado:",
     JSON.stringify(data, null, 2),
   ].join("\n\n");
@@ -258,6 +580,14 @@ function analyzeAdvanced(data) {
 
   if (parts.some((part) => /voltage source|battery|supply/.test(getType(part))) && !parts.some((part) => /switch|fuse|protection/.test(getType(part)))) {
     suggestions.push("Considera protección básica de entrada: interruptor, fusible o diodo de polaridad inversa.");
+  }
+
+  if (parts.some((part) => /and gate|or gate|xor gate|not gate|logic input|seven segment/.test(getType(part)))) {
+    suggestions.push("En lógica digital, etiqueta entradas y salidas para que el diagnóstico pueda explicar mejor la tabla de verdad.");
+  }
+
+  if (parts.some((part) => /seven segment/.test(getType(part))) && !parts.some((part) => /resistor/.test(getType(part)))) {
+    suggestions.push("Un display de 7 segmentos normalmente necesita resistencias limitadoras por segmento o un driver dedicado.");
   }
 
   if (!suggestions.length && parts.length) {
@@ -352,14 +682,17 @@ async function analyzeWithLmStudio(data) {
 }
 
 function runLocalAnalysis(data) {
-  if (selectedMode === "basic") return analyzeBasic(data);
-  if (selectedMode === "advanced") return analyzeAdvanced(data);
-  return analyzeComplete(data);
+  const interpretation = analyzeInterpretation(data);
+  if (selectedMode === "basic") return [...interpretation, ...analyzeBasic(data)];
+  if (selectedMode === "advanced") return [...interpretation, ...analyzeAdvanced(data)];
+  return [...interpretation, ...analyzeComplete(data)];
 }
 
 async function handleAnalyze() {
   try {
-    const parsed = parseCircuitInput(circuitJson.value);
+    const parsed = interpretCircuit(parseCircuitInput(circuitJson.value));
+    renderCircuitSummary(parsed);
+    renderCircuitPreview(parsed);
     renderResults([{
       type: "complete",
       title: "Analizando circuito",
@@ -413,7 +746,7 @@ downloadButton.addEventListener("click", () => downloadJson("nebula-circuit-temp
 
 copyPromptButton.addEventListener("click", async () => {
   try {
-    const parsed = parseCircuitInput(circuitJson.value);
+    const parsed = interpretCircuit(parseCircuitInput(circuitJson.value));
     await navigator.clipboard.writeText(buildPrompt(parsed));
     showToast("Prompt copiado al portapapeles.");
   } catch (error) {
@@ -425,7 +758,7 @@ document.querySelectorAll("[data-export]").forEach((button) => {
   button.addEventListener("click", () => {
     if (button.dataset.export === "json") {
       try {
-        const data = circuitJson.value.trim() ? parseCircuitInput(circuitJson.value) : sampleCircuit;
+        const data = circuitJson.value.trim() ? interpretCircuit(parseCircuitInput(circuitJson.value)) : interpretCircuit(sampleCircuit);
         downloadJson("nebula-current-circuit.json", data);
       } catch (error) {
         showToast(error.message);

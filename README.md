@@ -1,35 +1,48 @@
 # Nebula AI
 
-Nebula AI es un prototipo web para analizar circuitos exportados desde CircuitJS1 con tres modos de revisión:
+Nebula AI es un prototipo web para interpretar y analizar circuitos exportados desde CircuitJS1.
 
-- ⚡ Modo Básico: detecta errores comunes, cortos, nodos sueltos y polaridad dudosa.
-- 🚀 Modo Avanzado: sugiere mejoras de diseño, valores estándar y protecciones útiles.
-- 🌌 Modo Completo: combina errores críticos y optimizaciones en un diagnóstico integral.
+## Modos
+
+- Modo Basico: detecta errores comunes, cortos, nodos sueltos y polaridad dudosa.
+- Modo Avanzado: sugiere mejoras de diseno, valores estandar y protecciones utiles.
+- Modo Completo: combina errores criticos y optimizaciones en un diagnostico integral.
 
 ## Uso
 
 1. Abre `index.html` en el navegador.
 2. Selecciona Modo Earth, Spaceship o Ether.
-3. En CircuitJS1 usa **Archivo > Exportar en formato texto...**.
-4. Copia ese texto y pégalo en Nebula, o pulsa **Cargar demo**.
-5. Presiona **Analizar** para ver resultados en el panel Nebula.
+3. En CircuitJS1 usa **Archivo > Exportar en formato texto...**, o copia XML con raiz `<cir>`.
+4. Pega el contenido en Nebula, o pulsa **Cargar demo**.
+5. Presiona **Analizar**.
 
-Nebula también acepta JSON si más adelante conectas otra fuente de circuitos.
+Nebula acepta texto de CircuitJS1, XML `<cir>` y JSON.
+
+## Motor De Interpretacion
+
+Al analizar, Nebula crea un modelo interno del circuito:
+
+- normaliza componentes y terminales;
+- conserva coordenadas cuando existen;
+- une nodos conectados por cables;
+- clasifica el circuito como analogico, digital, mixto o desconocido;
+- genera una vista previa SVG dentro de la aplicacion;
+- agrega un resumen tecnico al panel de resultados y al prompt de LM Studio.
 
 ## LM Studio
 
-El prototipo incluye análisis local de respaldo y conexión opcional a LM Studio.
+El prototipo incluye analisis local de respaldo y conexion opcional a LM Studio.
 
-1. Abre el panel **Conexión opcional con LM Studio**.
+1. Abre el panel **Conexion opcional con LM Studio**.
 2. Confirma el endpoint, por defecto `http://localhost:1234/v1/chat/completions`.
-3. Activa **Enviar análisis a LM Studio**.
-4. Ejecuta el análisis.
+3. Activa **Enviar analisis a LM Studio**.
+4. Ejecuta el analisis.
 
-Si LM Studio no responde, Nebula muestra el análisis local sin perder el flujo.
+Si LM Studio no responde, Nebula muestra el analisis local sin perder el flujo.
 
 ## Archivos
 
 - `index.html`: estructura de la interfaz.
-- `styles.css`: tema visual cósmico, paneles y microinteracciones.
-- `app.js`: selección de modos, prompts, integración LM Studio y análisis local.
-- `assets/`: imágenes de referencia usadas por la interfaz.
+- `styles.css`: tema visual cosmico, paneles, preview SVG y microinteracciones.
+- `app.js`: parsers, motor de interpretacion, prompts, LM Studio y analisis local.
+- `assets/`: imagenes de referencia usadas por la interfaz.

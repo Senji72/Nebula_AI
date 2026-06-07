@@ -539,6 +539,114 @@ textarea:focus,
   accent-color: var(--turquoise);
 }
 
+.interpretation-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid rgba(218, 240, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.interpretation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.interpretation-header h2 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.interpretation-header p {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.circuit-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.summary-pill {
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1px solid rgba(218, 240, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(0, 207, 255, 0.08);
+  color: #e8faff;
+  font-weight: 800;
+}
+
+.circuit-preview {
+  min-height: 280px;
+  overflow: auto;
+  border: 1px solid rgba(218, 240, 255, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    rgba(1, 5, 14, 0.82);
+  background-size: 32px 32px;
+}
+
+.empty-preview {
+  display: grid;
+  min-height: 280px;
+  place-items: center;
+  padding: 20px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.circuit-preview svg {
+  display: block;
+  min-width: 100%;
+  height: auto;
+}
+
+.preview-wire {
+  stroke: var(--cyan);
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 5px rgba(0, 207, 255, 0.55));
+}
+
+.preview-part {
+  stroke: #f4fbff;
+  stroke-width: 2;
+  fill: rgba(122, 63, 255, 0.2);
+}
+
+.preview-part.digital {
+  fill: rgba(0, 255, 209, 0.16);
+  stroke: var(--turquoise);
+}
+
+.preview-part.output {
+  fill: rgba(101, 255, 154, 0.14);
+  stroke: var(--green);
+}
+
+.preview-label {
+  fill: #f4fbff;
+  font: 700 12px "Exo 2", system-ui, sans-serif;
+  paint-order: stroke;
+  stroke: rgba(1, 5, 14, 0.9);
+  stroke-width: 3px;
+}
+
+.preview-node {
+  fill: #ffffff;
+  stroke: var(--violet);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 5px rgba(122, 63, 255, 0.7));
+}
+
 .analysis-sidebar {
   display: grid;
   gap: 14px;
@@ -680,7 +788,8 @@ textarea:focus,
 
   .mode-panel,
   .components-panel,
-  .lm-grid {
+  .lm-grid,
+  .circuit-summary {
     grid-template-columns: 1fr;
   }
 

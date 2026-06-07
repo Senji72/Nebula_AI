@@ -87,13 +87,13 @@
           <div class="editor-header">
             <div>
               <h1>Nebula AI</h1>
-              <p>Importa texto o JSON de CircuitJS1, selecciona un modo y revisa el diagnóstico técnico.</p>
+              <p>Importa texto, XML o JSON de CircuitJS1, selecciona un modo y revisa el diagnóstico técnico.</p>
             </div>
             <span id="activeModeBadge" class="mode-badge">⚡ Básico</span>
           </div>
 
-          <label class="json-label" for="circuitJson">CircuitJS1 texto o JSON</label>
-          <textarea id="circuitJson" spellcheck="false" placeholder='Pega aquí "Exportar en formato texto..." de CircuitJS1. También acepta JSON. Ejemplo texto: r 144 112 224 112 0 1000'></textarea>
+          <label class="json-label" for="circuitJson">CircuitJS1 texto, XML o JSON</label>
+          <textarea id="circuitJson" spellcheck="false" placeholder='Pega aquí "Exportar en formato texto..." o XML de CircuitJS1. También acepta JSON. Ejemplo texto: r 144 112 224 112 0 1000'></textarea>
 
           <div class="controls-row">
             <button id="analyzeButton" class="primary-action" type="button">⚡ Analizar</button>
@@ -119,6 +119,24 @@
               <button id="copyPromptButton" class="secondary-action" type="button">Copiar prompt</button>
             </div>
           </details>
+
+          <section class="interpretation-panel" aria-label="Circuito interpretado">
+            <div class="interpretation-header">
+              <div>
+                <h2>Circuito interpretado</h2>
+                <p>Nebula construye una red de nodos y una vista previa desde el texto, XML o JSON importado.</p>
+              </div>
+              <span id="circuitKindBadge" class="mode-badge">Sin datos</span>
+            </div>
+            <div id="circuitSummary" class="circuit-summary">
+              <div class="summary-pill">Componentes: --</div>
+              <div class="summary-pill">Nodos: --</div>
+              <div class="summary-pill">Formato: --</div>
+            </div>
+            <div id="circuitPreview" class="circuit-preview">
+              <div class="empty-preview">La vista previa aparecerá después de analizar.</div>
+            </div>
+          </section>
         </section>
       </main>
 
@@ -134,7 +152,7 @@
         <div id="analysisPanel" class="analysis-panel" aria-live="polite">
           <div class="empty-state">
             <strong>Esperando circuito</strong>
-            <p>Carga texto/JSON y presiona analizar para iniciar el diagnóstico.</p>
+            <p>Carga texto, XML o JSON y presiona analizar para iniciar el diagnóstico.</p>
           </div>
         </div>
       </aside>
